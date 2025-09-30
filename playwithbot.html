@@ -1,0 +1,460 @@
+<!DOCTYPE html> 
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <title>Играть с ботом - Chess Trainer</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="icon" href="ChessLogo.jpg" type="image/jpg">
+  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="css/chessboard-1.0.0.min.css">
+  <link rel="stylesheet" href="css/bot.css?v=9" />
+</head>
+<body class="page">
+    <a href="index.html" class="back-link">← На главную</a>
+    <header class="hero" id="choice-header">
+        <h1>Выберите сторону</h1>
+    </header>
+    <main class="content">
+        <div id="game-area" style="display: none;">
+            <div class="game-container">
+                <div class="advantage-bar-container">
+                    <div class="advantage-bar" id="advantage-bar"></div>
+                    <div class="advantage-text" id="advantage-text"></div>
+                </div>
+                <div class="board-section">
+                    <div class="player-section">
+                        <div class="player-info top-player" id="top-player">
+                            <img src="black_user_icon.jpg" alt="Black Player" class="player-avatar">
+                            <span class="player-name" id="top-player-name">Black</span>
+                        </div>
+                        <div class="captured-pieces" id="top-captured"></div>
+                    </div>
+                    <div id="board" style="width: 500px"></div>
+                    <div class="player-section">
+                        <div class="player-info bottom-player" id="bottom-player">
+                            <img src="white_user_icon.jpg" alt="White Player" class="player-avatar">
+                            <span class="player-name" id="bottom-player-name">White</span>
+                        </div>
+                        <div class="captured-pieces" id="bottom-captured"></div>
+                    </div>
+                </div>
+                <div class="moves-panel">
+                    <div class="moves-header">
+                        <h3>История ходов</h3>
+                    </div>
+                    <div class="moves-content" id="moves-content">
+                        <div class="moves-table">
+                            <div class="move-row">
+                                <span class="move-number">1</span>
+                                <span class="move-white"></span>
+                                <span class="move-black"></span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="game-result" id="game-result" style="display: none;">
+                        <h3 id="result-text"></h3>
+                    </div>
+                </div>
+            </div>
+            <div id="status"></div>
+        </div>
+        <div id="player-choice" class="player-choice-container">
+            <button id="white-button">Играть за белых</button>
+            <button id="black-button">Играть за чёрных</button>
+        </div>
+    </main>
+    <script src="js/jquery-3.7.1.min.js"></script>
+    <script src="js/chessboard-1.0.0.min.js"></script>
+    <script src="js/chess.min.js"></script>
+    <script src="js/stockfish.js"></script>
+    <script>
+      var board = null;
+      var game = new Chess();
+      var stockfish = new Worker('js/stockfish.js');
+      var statusDiv = document.getElementById('status');
+      var advantageBar = document.getElementById('advantage-bar');
+      var advantageText = document.getElementById('advantage-text');
+      var whiteButton = document.getElementById('white-button');
+      var blackButton = document.getElementById('black-button');
+      var gameArea = document.getElementById('game-area');
+      var playerColor = 'w';
+      var pieceValues = {
+          'p': 1, 'n': 3, 'b': 3, 'r': 5, 'q': 9, 'k': 0,
+          'P': 1, 'N': 3, 'B': 3, 'R': 5, 'Q': 9, 'K': 0
+      };
+      var capturedPieces = {
+          white: [],
+          black: []
+      };
+      var moveHistory = [];
+      var currentMoveIndex = -1;
+      var pieceImages = {
+          'p': 'img/chesspieces/wikipedia/bP.png',
+          'n': 'img/chesspieces/wikipedia/bN.png',
+          'b': 'img/chesspieces/wikipedia/bB.png',
+          'r': 'img/chesspieces/wikipedia/bR.png',
+          'q': 'img/chesspieces/wikipedia/bQ.png',
+          'k': 'img/chesspieces/wikipedia/bK.png',
+          'P': 'img/chesspieces/wikipedia/wP.png',
+          'N': 'img/chesspieces/wikipedia/wN.png',
+          'B': 'img/chesspieces/wikipedia/wB.png',
+          'R': 'img/chesspieces/wikipedia/wR.png',
+          'Q': 'img/chesspieces/wikipedia/wQ.png',
+          'K': 'img/chesspieces/wikipedia/wK.png'
+      };
+      function calculateMaterialAdvantage() {
+          var whitePieces = 0;
+          var blackPieces = 0;
+          var whiteScore = 0;
+          var blackScore = 0;
+          var fen = game.fen().split(' ')[0];
+          
+          // Определяем цвет шкалы и текста в зависимости от цвета игрока
+          var playerBarColor = playerColor === 'w' ? '#ffffff' : '#000000';
+          var textColor = playerColor === 'w' ? '#000000' : '#ffffff';
+         
+          for (var i = 0; i < fen.length; i++) {
+              var piece = fen[i];
+              if (piece === '/') continue;
+              if (!isNaN(parseInt(piece))) {
+                  continue;
+              }
+             
+              if (piece.toUpperCase() === piece) {
+                  whiteScore += pieceValues[piece];
+                  whitePieces++;
+              } else {
+                  blackScore += pieceValues[piece];
+                  blackPieces++;
+              }
+          }
+         
+          if (whitePieces === 1) {
+              var displayAdvantage = playerColor === 'w' ? -blackScore : blackScore;
+              advantageText.innerText = (displayAdvantage > 0 ? '+' : '') + displayAdvantage;
+              advantageBar.style.height = playerColor === 'w' ? '0%' : '100%';
+              advantageBar.style.backgroundColor = playerBarColor;
+              advantageText.style.color = textColor;
+              return;
+          }
+          if (blackPieces === 1) {
+              var displayAdvantage = playerColor === 'w' ? whiteScore : -whiteScore;
+              advantageText.innerText = (displayAdvantage > 0 ? '+' : '') + displayAdvantage;
+              advantageBar.style.height = playerColor === 'w' ? '100%' : '0%';
+              advantageBar.style.backgroundColor = playerBarColor;
+              advantageText.style.color = textColor;
+              return;
+          }
+          var advantage = playerColor === 'w' ? (whiteScore - blackScore) : (blackScore - whiteScore);
+          var absAdvantage = Math.abs(advantage);
+          var barHeight = 50 + (advantage / 30) * 50;
+          barHeight = Math.max(0, Math.min(100, barHeight));
+          if (game.in_draw() || game.in_stalemate() || game.in_threefold_repetition() || game.insufficient_material()) {
+              advantageText.innerText = '0';
+              advantageBar.style.height = '50%';
+              advantageBar.style.backgroundColor = playerBarColor;
+              advantageText.style.color = textColor;
+              return;
+          }
+         
+          if (advantage !== 0) {
+              advantageText.innerText = (advantage > 0 ? '+' : '-') + absAdvantage;
+              advantageBar.style.height = `${barHeight}%`;
+              advantageBar.style.backgroundColor = playerBarColor;
+              advantageText.style.color = textColor;
+          } else {
+              advantageText.innerText = '0';
+              advantageBar.style.height = '50%';
+              advantageBar.style.backgroundColor = playerBarColor;
+              advantageText.style.color = textColor;
+          }
+      }
+      function updateCapturedPieces() {
+          // Получаем текущие фигуры на доске
+          var currentPieces = {};
+          var fen = game.fen().split(' ')[0];
+          
+          for (var i = 0; i < fen.length; i++) {
+              var piece = fen[i];
+              if (piece === '/' || !isNaN(parseInt(piece))) continue;
+              
+              if (!currentPieces[piece]) {
+                  currentPieces[piece] = 0;
+              }
+              currentPieces[piece]++;
+          }
+          
+          // Начальное количество фигур
+          var initialPieces = {
+              'p': 8, 'n': 2, 'b': 2, 'r': 2, 'q': 1, 'k': 1,
+              'P': 8, 'N': 2, 'B': 2, 'R': 2, 'Q': 1, 'K': 1
+          };
+          
+          // Определяем съеденные фигуры
+          capturedPieces.white = [];
+          capturedPieces.black = [];
+          
+          for (var piece in initialPieces) {
+              var missing = initialPieces[piece] - (currentPieces[piece] || 0);
+              for (var i = 0; i < missing; i++) {
+                  if (piece === piece.toUpperCase()) {
+                      // Белая фигура съедена
+                      capturedPieces.black.push(piece);
+                  } else {
+                      // Черная фигура съедена
+                      capturedPieces.white.push(piece);
+                  }
+              }
+          }
+          
+          // Отображаем съеденные фигуры
+          displayCapturedPieces();
+      }
+      
+      function displayCapturedPieces() {
+          var topCaptured = document.getElementById('top-captured');
+          var bottomCaptured = document.getElementById('bottom-captured');
+          
+          // Определяем, кто какие фигуры съел в зависимости от ориентации
+          var topPlayerCaptured, bottomPlayerCaptured;
+          
+          if (playerColor === 'w') {
+              // Играем за белых: сверху черные, снизу белые
+              topPlayerCaptured = capturedPieces.black; // Черные съели белых
+              bottomPlayerCaptured = capturedPieces.white; // Белые съели черных
+          } else {
+              // Играем за черных: сверху белые, снизу черные
+              topPlayerCaptured = capturedPieces.white; // Белые съели черных
+              bottomPlayerCaptured = capturedPieces.black; // Черные съели белых
+          }
+          
+          // Отображаем съеденные фигуры
+          topCaptured.innerHTML = '';
+          bottomCaptured.innerHTML = '';
+          
+          topPlayerCaptured.forEach(function(piece) {
+              var pieceDiv = document.createElement('div');
+              pieceDiv.className = 'captured-piece';
+              pieceDiv.style.backgroundImage = 'url(' + pieceImages[piece] + ')';
+              topCaptured.appendChild(pieceDiv);
+          });
+          
+          bottomPlayerCaptured.forEach(function(piece) {
+              var pieceDiv = document.createElement('div');
+              pieceDiv.className = 'captured-piece';
+              pieceDiv.style.backgroundImage = 'url(' + pieceImages[piece] + ')';
+              bottomCaptured.appendChild(pieceDiv);
+          });
+      }
+      
+      function updateMovesHistory() {
+          var movesContent = document.getElementById('moves-content');
+          var movesTable = movesContent.querySelector('.moves-table');
+          
+          // Очищаем таблицу
+          movesTable.innerHTML = '';
+          
+          // Добавляем ходы
+          for (var i = 0; i < moveHistory.length; i += 2) {
+              var moveRow = document.createElement('div');
+              moveRow.className = 'move-row';
+              
+              var moveNumber = document.createElement('span');
+              moveNumber.className = 'move-number';
+              moveNumber.textContent = Math.floor(i / 2) + 1;
+              
+              var moveWhite = document.createElement('span');
+              moveWhite.className = 'move-white';
+              moveWhite.textContent = moveHistory[i] || '';
+              
+              var moveBlack = document.createElement('span');
+              moveBlack.className = 'move-black';
+              moveBlack.textContent = moveHistory[i + 1] || '';
+              
+              moveRow.appendChild(moveNumber);
+              moveRow.appendChild(moveWhite);
+              moveRow.appendChild(moveBlack);
+              movesTable.appendChild(moveRow);
+          }
+          
+          // Прокручиваем к последнему ходу
+          movesContent.scrollTop = movesContent.scrollHeight;
+      }
+      
+      function addMoveToHistory(move) {
+          // Определяем цвет хода по текущему ходу в игре
+          var isWhiteMove = game.turn() === 'b'; // Если сейчас ход черных, значит предыдущий ход был белых
+          var moveWithSymbols = replacePieceLettersWithSymbols(move.san, isWhiteMove);
+          moveHistory.push(moveWithSymbols);
+          updateMovesHistory();
+      }
+      
+      function replacePieceLettersWithSymbols(move, isWhiteMove) {
+          var whitePieceSymbols = {
+              'N': '♘', // Knight
+              'B': '♗', // Bishop  
+              'R': '♖', // Rook
+              'Q': '♕', // Queen
+              'K': '♔'  // King
+          };
+          
+          var blackPieceSymbols = {
+              'N': '♞', // Knight
+              'B': '♝', // Bishop  
+              'R': '♜', // Rook
+              'Q': '♛', // Queen
+              'K': '♚'  // King
+          };
+          
+          var pieceSymbols = isWhiteMove ? whitePieceSymbols : blackPieceSymbols;
+          
+          var result = move;
+          for (var letter in pieceSymbols) {
+              result = result.replace(new RegExp(letter, 'g'), pieceSymbols[letter]);
+          }
+          
+          // Заменяем x на × для обозначения взятия
+          result = result.replace(/x/g, '×');
+          
+          return result;
+      }
+      
+      function updateTurnIndicator() {
+          var topPlayerName = document.getElementById('top-player-name');
+          var bottomPlayerName = document.getElementById('bottom-player-name');
+          
+          // Убираем анимацию у всех игроков
+          topPlayerName.className = 'player-name';
+          bottomPlayerName.className = 'player-name';
+          
+          // Добавляем анимацию тому, чей сейчас ход
+          if (!game.game_over()) {
+              var currentTurn = game.turn();
+              if ((playerColor === 'w' && currentTurn === 'w') || (playerColor === 'b' && currentTurn === 'b')) {
+                  // Ход игрока
+                  bottomPlayerName.className = 'player-name thinking-dots';
+              } else {
+                  // Ход бота
+                  topPlayerName.className = 'player-name thinking-dots';
+              }
+          }
+      }
+      
+      function updateStatus() {
+          var gameResultDiv = document.getElementById('game-result');
+          var resultText = document.getElementById('result-text');
+          
+          // Убираем все классы
+          gameResultDiv.className = 'game-result';
+          
+          if (game.in_checkmate()) {
+              var status = 'Мат!';
+              if ((game.turn() === 'w' && playerColor === 'w') || (game.turn() === 'b' && playerColor === 'b')) {
+                  status += ' Вы проиграли!';
+                  gameResultDiv.classList.add('lose');
+              } else {
+                  status += ' Вы победили!';
+                  gameResultDiv.classList.add('win');
+              }
+              gameResultDiv.style.display = 'block';
+              resultText.textContent = status;
+          } else if (game.in_draw() || game.in_stalemate() || game.in_threefold_repetition() || game.insufficient_material()) {
+              gameResultDiv.classList.add('draw');
+              gameResultDiv.style.display = 'block';
+              resultText.textContent = 'Ничья';
+          } else {
+              gameResultDiv.style.display = 'none';
+          }
+          statusDiv.innerHTML = '';
+          updateTurnIndicator();
+          updateCapturedPieces();
+      }
+      function onDrop(source, target) {
+          var move = game.move({
+              from: source,
+              to: target,
+              promotion: 'q'
+          });
+          if (move === null) return 'snapback';
+         
+          addMoveToHistory(move);
+          updateStatus();
+          calculateMaterialAdvantage();
+          if ((playerColor === 'w' && game.turn() === 'b') || (playerColor === 'b' && game.turn() === 'w')) {
+            window.setTimeout(makeBotMove, 250);
+          }
+      }
+      function makeBotMove() {
+          if (game.game_over()) return;
+          stockfish.postMessage('position fen ' + game.fen());
+          stockfish.postMessage('go depth 10');
+          stockfish.onmessage = function(event) {
+              var message = event.data;
+              if (message.startsWith('bestmove')) {
+                  var bestMove = message.split(' ')[1];
+                  var move = game.move(bestMove, { sloppy: true });
+                  board.position(game.fen());
+                  addMoveToHistory(move);
+                  updateStatus();
+                  calculateMaterialAdvantage();
+              }
+          };
+      }
+      function startGame(color) {
+          playerColor = color;
+          document.getElementById('player-choice').style.display = 'none';
+          document.getElementById('choice-header').style.display = 'none';
+          gameArea.style.display = 'flex';
+         
+          // Очищаем съеденные фигуры и историю ходов
+          capturedPieces.white = [];
+          capturedPieces.black = [];
+          moveHistory = [];
+          currentMoveIndex = -1;
+         
+          // Обновляем аватарки в зависимости от выбранной стороны
+          var topPlayer = document.getElementById('top-player');
+          var bottomPlayer = document.getElementById('bottom-player');
+          var topPlayerName = document.getElementById('top-player-name');
+          var bottomPlayerName = document.getElementById('bottom-player-name');
+          var topPlayerImg = topPlayer.querySelector('.player-avatar');
+          var bottomPlayerImg = bottomPlayer.querySelector('.player-avatar');
+          
+          if (playerColor === 'w') {
+              // Играем за белых - черные сверху, белые снизу
+              topPlayerImg.src = 'black_user_icon.jpg';
+              topPlayerImg.alt = 'Black Player (Bot)';
+              topPlayerName.textContent = 'Black (Bot)';
+              bottomPlayerImg.src = 'white_user_icon.jpg';
+              bottomPlayerImg.alt = 'White Player (You)';
+              bottomPlayerName.textContent = 'White (You)';
+          } else {
+              // Играем за черных - белые сверху, черные снизу
+              topPlayerImg.src = 'white_user_icon.jpg';
+              topPlayerImg.alt = 'White Player (Bot)';
+              topPlayerName.textContent = 'White (Bot)';
+              bottomPlayerImg.src = 'black_user_icon.jpg';
+              bottomPlayerImg.alt = 'Black Player (You)';
+              bottomPlayerName.textContent = 'Black (You)';
+          }
+         
+          var config = {
+              draggable: true,
+              position: 'start',
+              onDrop: onDrop
+          };
+         
+          if (playerColor === 'b') {
+              config.orientation = 'black';
+              game.load('rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1');
+              setTimeout(makeBotMove, 500);
+          }
+          board = Chessboard('board', config);
+          updateStatus();
+          calculateMaterialAdvantage();
+      }
+      whiteButton.onclick = function() { startGame('w'); };
+      blackButton.onclick = function() { startGame('b'); };
+    </script>
+</body>
+</html>
