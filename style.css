@@ -1,0 +1,260 @@
+:root {
+  --bg: #eaf7e5;
+  --ink: #0b1d24;
+  --muted: #6b5c4b;
+  --panel: #804c10;
+  --accent: #804c10;
+}
+
+* { box-sizing: border-box; }
+html { height: 100%; }
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+  color: var(--ink);
+  background: #fef3df;
+}
+
+h1, h2 { margin: 0; }
+a { color: var(--accent-2); text-decoration: none; }
+
+/* --- Главная страница --- */
+.hero {
+  padding: 10px 24px 8px;
+  text-align: center;
+}
+
+.page .hero {
+  padding: 10px 24px 8px;
+  text-align: center;
+}
+
+.page-home .hero {
+  padding: 10px 24px 8px;
+  text-align: center;
+}
+
+.page .hero h1 {
+  margin: 0;
+  padding: 0;
+  line-height: 1;
+}
+
+.page-home .hero h1 {
+  font-size: 48px;
+  letter-spacing: 1px;
+  margin: 0;
+  padding: 0;
+  line-height: 1;
+}
+
+.page-home .sub {
+  color: var(--muted);
+  margin-top: 6px;
+}
+
+.grid-choices {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 15px;
+  padding: 8px 22px 0px;
+  width: 1147px;
+  margin: 0 auto;
+}
+
+.choice {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: var(--panel);
+  border: 2px solid #804c10;
+  border-radius: 14px;
+  transition: transform .1s ease, border-color .1s ease, box-shadow .1s ease;
+  aspect-ratio: 1 / 1;
+}
+
+.choice:hover {
+  transform: translateY(-2px);
+  border-color: var(--accent);
+  box-shadow: 0 6px 18px rgba(0,0,0,.06);
+}
+
+.box {
+  width: 100%;
+  height: 100%;
+}
+
+.box-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 12px;
+}
+
+.grid-choices > div {
+  text-align: center;
+}
+
+.title {
+  display: block;
+  font-weight: 700;
+  font-size: 19px;
+  margin-top: 2px;
+  color: var(--ink);
+}
+
+.choice .desc { display: none; }
+
+/* --- Кнопка «На главную» --- */
+.page .back-link {
+    position: absolute;
+    top: 24px;
+    left: 24px;
+    font-size: 16px;
+    text-decoration: none;
+    color: var(--accent-2);
+}
+
+/* --- Выбор стороны --- */
+.player-choice-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 20px;
+}
+
+.player-choice-container button {
+    padding: 12px 24px;
+    font-size: 18px;
+    border: 2px solid #804c10;
+    background-color: transparent;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background-color 0.3s, color 0.3s;
+}
+
+.player-choice-container button:hover {
+    background-color: #a56216;
+    color: #fff;
+}
+.highlight-move {
+    background: rgba(255, 215, 0, 0.45) !important;
+    border-radius: 4px;
+    position: relative;
+  }
+  .highlight-dot {
+    width: 14px;
+    height: 14px;
+    background: rgba(0, 0, 0, 0.6);
+    border-radius: 50%;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+  }
+  .highlight-capture {
+    background: rgba(255, 0, 0, 0.4) !important;
+    border-radius: 4px;
+    position: relative;
+    box-shadow: inset 0 0 0 2px rgba(255, 0, 0, 0.8);
+  }
+  
+  /* Стили для анимированных королей */
+    .king-animation {
+  position: fixed;
+  width: 500px;
+  height: 500px;
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+  z-index: 1000;
+  transition: all 0.8s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+  pointer-events: none;
+  filter: drop-shadow(0 10px 20px rgba(0, 0, 0, 0.3));
+}
+
+.white-king {
+  background-image: url('img/chesspieces/wikipedia/WhiteK.png');
+  left: -850px;
+  top: 60%;
+  transform: translateY(-50%) rotate(35deg) scale(1.2); /* Всегда наклонен вправо */
+  transform-origin: center right;
+}
+
+.black-king {
+  background-image: url('img/chesspieces/wikipedia/BlackK.png');
+  right: -875px;
+  top: 60%;
+  transform: translateY(-50%) rotate(-35deg) scale(1.2); /* Всегда наклонен влево */
+  transform-origin: center left;
+}
+
+.white-king.visible {
+  left: -150px; /* Сдвигается ближе к центру, оставаясь наклоненным */
+}
+
+.black-king.visible {
+  right: -150px; /* Сдвигается ближе к центру, оставаясь наклоненным */
+}
+
+/* Легкое покачивание для живого эффекта */
+@keyframes gentleSway {
+  0%, 100% { transform: translateY(-50%) rotate(35deg) scale(1.2); }
+  50% { transform: translateY(-50%) rotate(37deg) scale(1.2); }
+}
+
+@keyframes gentleSwayBlack {
+  0%, 100% { transform: translateY(-50%) rotate(-35deg) scale(1.2); }
+  50% { transform: translateY(-50%) rotate(-37deg) scale(1.2); }
+}
+
+.white-king.visible {
+  animation: gentleSway 4s ease-in-out infinite;
+}
+
+.black-king.visible {
+  animation: gentleSwayBlack 4s ease-in-out infinite;
+}
+
+.player-choice-container {
+  position: relative;
+  z-index: 1;
+}
+
+/* Стили для кнопки Играть */
+.play-button-container {
+  position: absolute;
+  top: -50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 100;
+}
+
+.play-button {
+  padding: 15px 40px;
+  font-size: 1.5em;
+  background: linear-gradient(135deg, #6e8efb, #a777e3);
+  color: white;
+  border: none;
+  border-radius: 50px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+  font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.play-button:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+  background: linear-gradient(135deg, #5d7dfa, #9666e0);
+}
+
+.play-button:disabled {
+  background: #cccccc;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}

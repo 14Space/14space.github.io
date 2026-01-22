@@ -1,0 +1,1030 @@
+<!DOCTYPE html> 
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <title>Играть с ботом - Chess Trainer</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="icon" href="ChessLogo.jpg" type="image/jpg">
+  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="css/chessboard-1.0.0.min.css">
+  <link rel="stylesheet" href="css/bot.css?v=10" />
+  <style>
+    /* Стили для кнопки "Играть" в активном состоянии */
+    .play-button:not(:disabled) {
+        background: linear-gradient(135deg, #f3e5d7 0%, #c9a88e 100%);
+        border: 2px solid #a6896d;
+        color: #5d4037;
+        font-weight: bold;
+        box-shadow: 0 0 15px rgba(166, 137, 109, 0.5);
+        cursor: pointer;
+        transform: scale(1.02);
+    }
+    
+    .play-button:not(:disabled):hover {
+        background: linear-gradient(135deg, #e8d5c3 0%, #b8977a 100%);
+        box-shadow: 0 0 20px rgba(166, 137, 109, 0.7);
+        transform: scale(1.05);
+    }
+    
+    /* Плавные переходы для всех кнопок */
+    .side-button, .difficulty-button, .play-button {
+        transition: all 0.3s ease;
+    }
+    
+    /* Стили для выбранных кнопок стороны и сложности */
+    .side-button.selected {
+        background: linear-gradient(135deg, #f3e5d7 0%, #c9a88e 100%);
+        border-color: #a6896d;
+        box-shadow: 0 0 12px rgba(166, 137, 109, 0.4);
+        color: #5d4037;
+    }
+    
+    .difficulty-button.selected {
+        background: linear-gradient(135deg, #f3e5d7 0%, #c9a88e 100%);
+        border-color: #a6896d;
+        box-shadow: 0 0 10px rgba(166, 137, 109, 0.4);
+        color: #5d4037;
+    }
+
+    /* Стили для центрирования игровой области */
+    #game-area {
+        display: none;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        min-height: 80vh;
+        width: 100%;
+        padding: 20px;
+        margin: 0 auto;
+    }
+
+    .game-container {
+        display: flex;
+        flex-direction: row;
+        align-items: flex-start;
+        justify-content: center;
+        gap: 40px;
+        max-width: 1200px;
+        width: 100%;
+        margin: 0 auto;
+        padding: 20px;
+        overflow: visible;
+    }
+
+    .board-section {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 15px;
+    }
+
+    .player-section {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        width: 100%;
+        max-width: 500px;
+    }
+
+    .player-info {
+        width: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 15px;
+        padding: 10px 20px;
+        background: linear-gradient(135deg, #f5e9dc, #e8d5c4);
+        border-radius: 10px;
+        border: 2px solid #d7ccc8;
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    }
+
+    .player-avatar {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        border: 2px solid #8d6e63;
+    }
+
+    .player-name {
+        font-size: 18px;
+        font-weight: 500;
+        color: #5d4037;
+    }
+
+    /* Стили для блока съеденных фигур - ОБНОВЛЕНО */
+    .captured-pieces {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 5px;
+        justify-content: center;
+        min-height: 40px;
+        width: 100%;
+        padding: 10px;
+        background: #f8f1e8;
+        border-radius: 8px;
+        border: 1px solid #d7ccc8;
+        margin-top: 50px; /* ← Это сдвинет блок вниз на 50px */
+        margin-right: 100px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    /* Дополнительно можно стилизовать сами фигуры */
+    .captured-piece {
+        width: 25px;
+        height: 25px;
+        background-size: contain;
+        background-repeat: no-repeat;
+        background-position: center;
+        transition: transform 0.2s ease; /* Плавное увеличение при наведении */
+    }
+
+    .captured-piece:hover {
+        transform: scale(1.2); /* Увеличение фигуры при наведении */
+        z-index: 1;
+    }
+
+    /* Если нужно разное расстояние для верхних и нижних фигур */
+    #top-captured {
+    margin-top: -80px; /* ← Отрицательный margin поднимает элемент вверх */
+    margin-left: -57px; /* ← Сохраняем сдвиг влево на 50px, если он нужен */
+    }
+
+    #bottom-captured {
+        margin-top: 60px; /* И другое для нижних фигур */
+        margin-left: -57px; /* ← Сохраняем сдвиг влево на 50px, если он нужен */
+    }
+
+    #board {
+        border-radius: 8px;
+        overflow: visible;
+        box-shadow: 0 8px 20px rgba(0,0,0,0.2);
+        border: 3px solid #8d6e63;
+    }
+
+    .moves-panel {
+        flex: 0 0 300px;
+        background: linear-gradient(135deg, #f5e9dc, #e8d5c4);
+        border-radius: 12px;
+        padding: 20px;
+        border: 2px solid #d7ccc8;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        max-height: 600px;
+        display: flex;
+        flex-direction: column;
+        margin-top: 90px;
+    }
+
+    .moves-header {
+        text-align: center;
+        margin-bottom: 15px;
+        padding-bottom: 10px;
+        border-bottom: 2px solid #d7a27e;
+    }
+
+    .moves-header h3 {
+        color: #5d4037;
+        margin: 0;
+        font-weight: 500;
+    }
+
+    .moves-content {
+        flex: 1;
+        overflow-y: auto;
+        background: #f8f1e8;
+        border-radius: 8px;
+        padding: 15px;
+        border: 1px solid #d7ccc8;
+    }
+
+    .moves-table {
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+    }
+
+    .move-row {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 5px 10px;
+        background: white;
+        border-radius: 4px;
+        border: 1px solid #e8d5c4;
+    }
+
+    .move-number {
+        font-weight: bold;
+        color: #8d6e63;
+        min-width: 25px;
+    }
+
+    .move-white, .move-black {
+        flex: 1;
+        text-align: center;
+        padding: 2px 5px;
+        border-radius: 3px;
+    }
+
+    .move-white {
+        background: rgba(255,255,255,0.5);
+    }
+
+    .move-black {
+        background: rgba(0,0,0,0.05);
+    }
+
+    .game-result {
+        text-align: center;
+        margin-top: 20px;
+        padding: 15px;
+        border-radius: 8px;
+        background: #f8f1e8;
+        border: 2px solid #d7ccc8;
+    }
+
+    .game-result h3 {
+        margin: 0 0 15px 0;
+        color: #5d4037;
+        font-size: 20px;
+    }
+
+    .rematch-button {
+        background: linear-gradient(135deg, #8d6e63, #a1887f);
+        color: white;
+        border: none;
+        border-radius: 6px;
+        padding: 10px 20px;
+        font-size: 16px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+
+    .rematch-button:hover {
+        background: linear-gradient(135deg, #a1887f, #8d6e63);
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+    }
+
+    .advantage-bar-container {
+        position: relative;
+        width: 30px;
+        height: 300px;
+        background: #e8d5c4;
+        border-radius: 15px;
+        overflow: hidden;
+        border: 2px solid #8d6e63;
+        margin-right: 20px;
+    }
+
+    .advantage-bar {
+        position: absolute;
+        bottom: 0;
+        width: 100%;
+        background: linear-gradient(to top, #8d6e63, #a1887f);
+        transition: height 0.5s ease;
+    }
+
+    .advantage-text {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        color: white;
+        font-weight: bold;
+        font-size: 14px;
+        text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+        white-space: nowrap;
+    }
+
+    /* Адаптивность для мобильных устройств */
+    @media (max-width: 1024px) {
+        .game-container {
+            overflow: visible; /* Убедитесь, что не скрывает сдвинутые элементы */
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+        }
+        
+        .advantage-bar-container {
+            display: none;
+        }
+        
+        #board {
+            width: 400px;
+            max-width: 90vw;
+        }
+        
+        .moves-panel {
+            width: 100%;
+            max-width: 500px;
+        }
+    }
+
+    @media (max-width: 768px) {
+        #board {
+            width: 350px;
+        }
+        
+        .player-info {
+            padding: 8px 15px;
+        }
+        
+        .player-avatar {
+            width: 35px;
+            height: 35px;
+        }
+        
+        .player-name {
+            font-size: 16px;
+        }
+    }
+
+    /* Анимации для активного хода */
+    .thinking-dots {
+    position: relative;
+    padding-right: 25px; /* Зарезервировать место для точек */
+}
+
+.thinking-dots::after {
+    content: '';
+    position: absolute;
+    right: 0;
+    top: 0;
+    width: 20px; /* Фиксированная ширина */
+    animation: dots 1.5s steps(4, end) infinite;
+}
+
+@keyframes dots {
+    0%, 20% { content: ''; }
+    40% { content: '.'; }
+    60% { content: '..'; }
+    80%, 100% { content: '...'; }
+}
+
+    @keyframes dots {
+        0%, 20% { content: ''; }
+        40% { content: '.'; }
+        60% { content: '..'; }
+        80%, 100% { content: '...'; }
+    }
+  </style>
+</head>
+<body class="page">
+    <!-- Анимированные короли -->
+    <div class="king-animation white-king" id="white-king"></div>
+    <div class="king-animation black-king" id="black-king"></div>
+    
+    <a href="index.html" class="back-link">← На главную</a>
+    <header class="hero" id="choice-header">
+        <h1>Выберите сторону</h1>
+    </header>
+    <main class="content">
+        <div id="game-area" style="display: none;">
+            <div class="game-container">
+                <div class="advantage-bar-container">
+                    <div class="advantage-bar" id="advantage-bar"></div>
+                    <div class="advantage-text" id="advantage-text"></div>
+                </div>
+                <div class="board-section">
+                    <div class="player-section">
+                        <div class="player-info top-player" id="top-player">
+                            <img src="black_user_icon.jpg" alt="Black Player" class="player-avatar">
+                            <span class="player-name" id="top-player-name">Black</span>
+                        </div>
+                        <div class="captured-pieces" id="top-captured"></div>
+                    </div>
+                    <div id="board" style="width: 495px; transform: translateX(-5px);"></div>
+                    <div class="player-section">
+                        <div class="player-info bottom-player" id="bottom-player">
+                            <img src="white_user_icon.jpg" alt="White Player" class="player-avatar">
+                            <span class="player-name" id="bottom-player-name">White</span>
+                        </div>
+                        <div class="captured-pieces" id="bottom-captured"></div>
+                    </div>
+                </div>
+                <div class="moves-panel">
+                    <div class="moves-header">
+                        <h3>История ходов</h3>
+                    </div>
+                    <div class="moves-content" id="moves-content">
+                        <div class="moves-table">
+                            <div class="move-row">
+                                <span class="move-number">1</span>
+                                <span class="move-white"></span>
+                                <span class="move-black"></span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="game-result" id="game-result" style="display: none;">
+                        <h3 id="result-text"></h3>
+                        <button class="rematch-button" id="rematch-button">Реванш</button>
+                    </div>
+                </div>
+            </div>
+            <div id="status"></div>
+        </div>
+        <div id="player-choice" class="player-choice-container">
+            <div class="side-selection">
+                <button id="white-button" class="side-button">Играть за белых</button>
+                <button id="black-button" class="side-button">Играть за чёрных</button>
+            </div>
+            <div class="difficulty-selection">
+                <h3>Выберите сложность:</h3>
+                <div class="difficulty-buttons">
+                    <button id="easy-button" class="difficulty-button">Легкий</button>
+                    <button id="medium-button" class="difficulty-button">Средний</button>
+                    <button id="hard-button" class="difficulty-button">Сложный</button>
+                </div>
+            </div>
+            <!-- Новая кнопка Играть -->
+            <div class="play-button-container">
+                <button id="play-button" class="play-button" disabled>Играть</button>
+            </div>
+        </div>
+    </main>
+    <script src="js/jquery-3.7.1.min.js"></script>
+    <script src="js/chessboard-1.0.0.min.js"></script>
+    <script src="js/chess.min.js"></script>
+    <script src="js/stockfish.js"></script>
+    <script>
+      var board = null;
+      var game = new Chess();
+      var stockfish = new Worker('js/stockfish.js');
+      var statusDiv = document.getElementById('status');
+      var advantageBar = document.getElementById('advantage-bar');
+      var advantageText = document.getElementById('advantage-text');
+      var whiteButton = document.getElementById('white-button');
+      var blackButton = document.getElementById('black-button');
+      var easyButton = document.getElementById('easy-button');
+      var mediumButton = document.getElementById('medium-button');
+      var hardButton = document.getElementById('hard-button');
+      var whiteKing = document.getElementById('white-king');
+      var blackKing = document.getElementById('black-king');
+      var playButton = document.getElementById('play-button');
+      
+      var selectedSide = null;
+      var selectedDifficulty = null;
+      var currentBotDepth = 12;
+      var currentBotTime = 2000;
+      var gameArea = document.getElementById('game-area');
+      var playerColor = 'w';
+      var pieceValues = {
+          'p': 1, 'n': 3, 'b': 3, 'r': 5, 'q': 9, 'k': 0,
+          'P': 1, 'N': 3, 'B': 3, 'R': 5, 'Q': 9, 'K': 0
+      };
+      var capturedPieces = {
+          white: [],
+          black: []
+      };
+      var moveHistory = [];
+      var currentMoveIndex = -1;
+      var pieceImages = {
+          'p': 'img/chesspieces/wikipedia/bP.png',
+          'n': 'img/chesspieces/wikipedia/bN.png',
+          'b': 'img/chesspieces/wikipedia/bB.png',
+          'r': 'img/chesspieces/wikipedia/bR.png',
+          'q': 'img/chesspieces/wikipedia/bQ.png',
+          'k': 'img/chesspieces/wikipedia/bK.png',
+          'P': 'img/chesspieces/wikipedia/wP.png',
+          'N': 'img/chesspieces/wikipedia/wN.png',
+          'B': 'img/chesspieces/wikipedia/wB.png',
+          'R': 'img/chesspieces/wikipedia/wR.png',
+          'Q': 'img/chesspieces/wikipedia/wQ.png',
+          'K': 'img/chesspieces/wikipedia/wK.png'
+      };
+      
+      function updateKingsVisibility() {
+          if (selectedSide === 'w') {
+              whiteKing.classList.add('visible');
+              blackKing.classList.remove('visible');
+          } else if (selectedSide === 'b') {
+              whiteKing.classList.remove('visible');
+              blackKing.classList.add('visible');
+          } else {
+              // Если сторона не выбрана, скрываем обоих королей
+              whiteKing.classList.remove('visible');
+              blackKing.classList.remove('visible');
+          }
+      }
+      
+      function checkCanStartGame() {
+          if (selectedSide && selectedDifficulty) {
+              // Включаем кнопку "Играть"
+              playButton.disabled = false;
+          } else {
+              // Выключаем кнопку "Играть"
+              playButton.disabled = true;
+          }
+      }
+      
+      function calculateMaterialAdvantage() {
+          var whitePieces = 0;
+          var blackPieces = 0;
+          var whiteScore = 0;
+          var blackScore = 0;
+          var fen = game.fen().split(' ')[0];
+          
+          // Определяем цвет шкалы и текста в зависимости от цвета игрока
+          var playerBarColor = playerColor === 'w' ? '#ffffff' : '#000000';
+          var textColor = playerColor === 'w' ? '#000000' : '#ffffff';
+         
+          for (var i = 0; i < fen.length; i++) {
+              var piece = fen[i];
+              if (piece === '/') continue;
+              if (!isNaN(parseInt(piece))) {
+                  continue;
+              }
+             
+              if (piece.toUpperCase() === piece) {
+                  whiteScore += pieceValues[piece];
+                  whitePieces++;
+              } else {
+                  blackScore += pieceValues[piece];
+                  blackPieces++;
+              }
+          }
+         
+          if (whitePieces === 1) {
+              var displayAdvantage = playerColor === 'w' ? -blackScore : blackScore;
+              advantageText.innerText = (displayAdvantage > 0 ? '+' : '') + displayAdvantage;
+              advantageBar.style.height = playerColor === 'w' ? '0%' : '100%';
+              advantageBar.style.backgroundColor = playerBarColor;
+              advantageText.style.color = textColor;
+              return;
+          }
+          if (blackPieces === 1) {
+              var displayAdvantage = playerColor === 'w' ? whiteScore : -whiteScore;
+              advantageText.innerText = (displayAdvantage > 0 ? '+' : '') + displayAdvantage;
+              advantageBar.style.height = playerColor === 'w' ? '100%' : '0%';
+              advantageBar.style.backgroundColor = playerBarColor;
+              advantageText.style.color = textColor;
+              return;
+          }
+          var advantage = playerColor === 'w' ? (whiteScore - blackScore) : (blackScore - whiteScore);
+          var absAdvantage = Math.abs(advantage);
+          var barHeight = 50 + (advantage / 30) * 50;
+          barHeight = Math.max(0, Math.min(100, barHeight));
+          if (game.in_draw() || game.in_stalemate() || game.in_threefold_repetition() || game.insufficient_material()) {
+              advantageText.innerText = '0';
+              advantageBar.style.height = '50%';
+              advantageBar.style.backgroundColor = playerBarColor;
+              advantageText.style.color = textColor;
+              return;
+          }
+         
+          if (advantage !== 0) {
+              advantageText.innerText = (advantage > 0 ? '+' : '-') + absAdvantage;
+              advantageBar.style.height = `${barHeight}%`;
+              advantageBar.style.backgroundColor = playerBarColor;
+              advantageText.style.color = textColor;
+          } else {
+              advantageText.innerText = '0';
+              advantageBar.style.height = '50%';
+              advantageBar.style.backgroundColor = playerBarColor;
+              advantageText.style.color = textColor;
+          }
+      }
+      function updateCapturedPieces() {
+          // Получаем текущие фигуры на доске
+          var currentPieces = {};
+          var fen = game.fen().split(' ')[0];
+          
+          for (var i = 0; i < fen.length; i++) {
+              var piece = fen[i];
+              if (piece === '/' || !isNaN(parseInt(piece))) continue;
+              
+              if (!currentPieces[piece]) {
+                  currentPieces[piece] = 0;
+              }
+              currentPieces[piece]++;
+          }
+          
+          // Начальное количество фигур
+          var initialPieces = {
+              'p': 8, 'n': 2, 'b': 2, 'r': 2, 'q': 1, 'k': 1,
+              'P': 8, 'N': 2, 'B': 2, 'R': 2, 'Q': 1, 'K': 1
+          };
+          
+          // Определяем съеденные фигуры
+          capturedPieces.white = [];
+          capturedPieces.black = [];
+          
+          for (var piece in initialPieces) {
+              var missing = initialPieces[piece] - (currentPieces[piece] || 0);
+              for (var i = 0; i < missing; i++) {
+                  if (piece === piece.toUpperCase()) {
+                      // Белая фигура съедена
+                      capturedPieces.black.push(piece);
+                  } else {
+                      // Черная фигура съедена
+                      capturedPieces.white.push(piece);
+                  }
+              }
+          }
+          
+          // Отображаем съеденные фигуры
+          displayCapturedPieces();
+      }
+      
+      function displayCapturedPieces() {
+          var topCaptured = document.getElementById('top-captured');
+          var bottomCaptured = document.getElementById('bottom-captured');
+          
+          // Определяем, кто какие фигуры съел в зависимости от ориентации
+          var topPlayerCaptured, bottomPlayerCaptured;
+          
+          if (playerColor === 'w') {
+              // Играем за белых: сверху черные, снизу белые
+              topPlayerCaptured = capturedPieces.black; // Черные съели белых
+              bottomPlayerCaptured = capturedPieces.white; // Белые съели черных
+          } else {
+              // Играем за черных: сверху белые, снизу черные
+              topPlayerCaptured = capturedPieces.white; // Белые съели черных
+              bottomPlayerCaptured = capturedPieces.black; // Черные съели белых
+          }
+          
+          // Отображаем съеденные фигуры
+          topCaptured.innerHTML = '';
+          bottomCaptured.innerHTML = '';
+          
+          topPlayerCaptured.forEach(function(piece) {
+              var pieceDiv = document.createElement('div');
+              pieceDiv.className = 'captured-piece';
+              pieceDiv.style.backgroundImage = 'url(' + pieceImages[piece] + ')';
+              topCaptured.appendChild(pieceDiv);
+          });
+          
+          bottomPlayerCaptured.forEach(function(piece) {
+              var pieceDiv = document.createElement('div');
+              pieceDiv.className = 'captured-piece';
+              pieceDiv.style.backgroundImage = 'url(' + pieceImages[piece] + ')';
+              bottomCaptured.appendChild(pieceDiv);
+          });
+      }
+      
+      function updateMovesHistory() {
+          var movesContent = document.getElementById('moves-content');
+          var movesTable = movesContent.querySelector('.moves-table');
+          
+          // Очищаем таблицу
+          movesTable.innerHTML = '';
+          
+          // Добавляем ходы
+          for (var i = 0; i < moveHistory.length; i += 2) {
+              var moveRow = document.createElement('div');
+              moveRow.className = 'move-row';
+              
+              var moveNumber = document.createElement('span');
+              moveNumber.className = 'move-number';
+              moveNumber.textContent = Math.floor(i / 2) + 1;
+              
+              var moveWhite = document.createElement('span');
+              moveWhite.className = 'move-white';
+              moveWhite.textContent = moveHistory[i] || '';
+              
+              var moveBlack = document.createElement('span');
+              moveBlack.className = 'move-black';
+              moveBlack.textContent = moveHistory[i + 1] || '';
+              
+              moveRow.appendChild(moveNumber);
+              moveRow.appendChild(moveWhite);
+              moveRow.appendChild(moveBlack);
+              movesTable.appendChild(moveRow);
+          }
+          
+          // Прокручиваем к последнему ходу
+          movesContent.scrollTop = movesContent.scrollHeight;
+      }
+      
+      function addMoveToHistory(move) {
+          // Определяем цвет хода по текущему ходу в игре
+          var isWhiteMove = game.turn() === 'b'; // Если сейчас ход черных, значит предыдущий ход был белых
+          var moveWithSymbols = replacePieceLettersWithSymbols(move.san, isWhiteMove);
+          moveHistory.push(moveWithSymbols);
+          updateMovesHistory();
+      }
+      
+      function replacePieceLettersWithSymbols(move, isWhiteMove) {
+          var whitePieceSymbols = {
+              'N': '♘', // Knight
+              'B': '♗', // Bishop  
+              'R': '♖', // Rook
+              'Q': '♕', // Queen
+              'K': '♔'  // King
+          };
+          
+          var blackPieceSymbols = {
+              'N': '♞', // Knight
+              'B': '♝', // Bishop  
+              'R': '♜', // Rook
+              'Q': '♛', // Queen
+              'K': '♚'  // King
+          };
+          
+          var pieceSymbols = isWhiteMove ? whitePieceSymbols : blackPieceSymbols;
+          
+          var result = move;
+          for (var letter in pieceSymbols) {
+              result = result.replace(new RegExp(letter, 'g'), pieceSymbols[letter]);
+          }
+          
+          // Заменяем x на × для обозначения взятия
+          result = result.replace(/x/g, '×');
+          
+          return result;
+      }
+      
+      function updateTurnIndicator() {
+          var topPlayerName = document.getElementById('top-player-name');
+          var bottomPlayerName = document.getElementById('bottom-player-name');
+          
+          // Убираем анимацию у всех игроков
+          topPlayerName.className = 'player-name';
+          bottomPlayerName.className = 'player-name';
+          
+          // Добавляем анимацию тому, чей сейчас ход
+          if (!game.game_over()) {
+              var currentTurn = game.turn();
+              if ((playerColor === 'w' && currentTurn === 'w') || (playerColor === 'b' && currentTurn === 'b')) {
+                  // Ход игрока
+                  bottomPlayerName.className = 'player-name thinking-dots';
+              } else {
+                  // Ход бота
+                  topPlayerName.className = 'player-name thinking-dots';
+              }
+          }
+      }
+      
+      function updateStatus() {
+          var gameResultDiv = document.getElementById('game-result');
+          var resultText = document.getElementById('result-text');
+          var rematchButton = document.getElementById('rematch-button');
+          
+          // Убираем все классы
+          gameResultDiv.className = 'game-result';
+          
+          if (game.in_checkmate()) {
+              var status = 'Мат!';
+              if ((game.turn() === 'w' && playerColor === 'w') || (game.turn() === 'b' && playerColor === 'b')) {
+                  status += ' Вы проиграли!';
+                  gameResultDiv.classList.add('lose');
+              } else {
+                  status += ' Вы победили!';
+                  gameResultDiv.classList.add('win');
+              }
+              gameResultDiv.style.display = 'block';
+              resultText.textContent = status;
+          } else if (game.in_draw() || game.in_stalemate() || game.in_threefold_repetition() || game.insufficient_material()) {
+              gameResultDiv.classList.add('draw');
+              gameResultDiv.style.display = 'block';
+              resultText.textContent = 'Ничья';
+          } else {
+              gameResultDiv.style.display = 'none';
+          }
+          statusDiv.innerHTML = '';
+          updateTurnIndicator();
+          updateCapturedPieces();
+      }
+      
+      function setupRematchButton() {
+          var rematchButton = document.getElementById('rematch-button');
+          rematchButton.onclick = function() {
+              game.reset();
+              board.start();
+              capturedPieces.white = [];
+              capturedPieces.black = [];
+              moveHistory = [];
+              currentMoveIndex = -1;
+              updateMovesHistory();
+              updateStatus();
+              calculateMaterialAdvantage();
+              if (playerColor === 'b') {
+                  setTimeout(makeBotMove, 250);
+              }
+          };
+      }
+      
+      function selectSide(side) {
+          selectedSide = side;
+          whiteButton.classList.remove('selected');
+          blackButton.classList.remove('selected');
+          
+          if (side === 'w') {
+              whiteButton.classList.add('selected');
+          } else {
+              blackButton.classList.add('selected');
+          }
+          
+          // Обновляем видимость королей
+          updateKingsVisibility();
+          
+          // Проверяем, можно ли активировать кнопку "Играть"
+          checkCanStartGame();
+      }
+      
+      function selectDifficulty(difficulty) {
+          selectedDifficulty = difficulty;
+          easyButton.classList.remove('selected');
+          mediumButton.classList.remove('selected');
+          hardButton.classList.remove('selected');
+          
+          if (difficulty === 'easy') {
+              easyButton.classList.add('selected');
+          } else if (difficulty === 'medium') {
+              mediumButton.classList.add('selected');
+          } else {
+              hardButton.classList.add('selected');
+          }
+          
+          // Проверяем, можно ли активировать кнопку "Играть"
+          checkCanStartGame();
+      }
+      
+      function setBotDifficulty(difficulty) {
+          switch(difficulty) {
+              case 'easy':
+                  currentBotDepth = 8;
+                  currentBotTime = 1000;
+                  break;
+              case 'medium':
+                  currentBotDepth = 12;
+                  currentBotTime = 2000;
+                  break;
+              case 'hard':
+                  currentBotDepth = 16;
+                  currentBotTime = 3000;
+                  break;
+              default:
+                  currentBotDepth = 12;
+                  currentBotTime = 2000;
+          }
+          
+          stockfish.postMessage('setoption name Skill Level value ' + (difficulty === 'easy' ? 0 : difficulty === 'medium' ? 5 : 10));
+          stockfish.postMessage('setoption name UCI_LimitStrength value ' + (difficulty === 'easy' ? 'true' : 'false'));
+          stockfish.postMessage('setoption name UCI_Elo value ' + (difficulty === 'easy' ? 1200 : difficulty === 'medium' ? 1800 : 2400));
+      }
+      function onDrop(source, target) {
+        removeHighlights();
+          var move = game.move({
+              from: source,
+              to: target,
+              promotion: 'q'
+          });
+          if (move === null) return 'snapback';
+         
+          addMoveToHistory(move);
+          updateStatus();
+          calculateMaterialAdvantage();
+          if ((playerColor === 'w' && game.turn() === 'b') || (playerColor === 'b' && game.turn() === 'w')) {
+            window.setTimeout(makeBotMove, 250);
+          }
+      }
+      function makeBotMove() {
+          if (game.game_over()) return;
+          stockfish.postMessage('position fen ' + game.fen());
+          stockfish.postMessage('go depth ' + currentBotDepth);
+          stockfish.onmessage = function(event) {
+              var message = event.data;
+              if (message.startsWith('bestmove')) {
+                  var bestMove = message.split(' ')[1];
+                  var move = game.move(bestMove, { sloppy: true });
+                  board.position(game.fen());
+                  addMoveToHistory(move);
+                  updateStatus();
+                  calculateMaterialAdvantage();
+              }
+          };
+      }
+      // ==================== Подсветка возможных ходов ====================
+var highlightedSquares = [];
+
+function removeHighlights() {
+  highlightedSquares.forEach(sq => {
+    var el = document.querySelector('.square-' + sq);
+    if (el) {
+      el.classList.remove('highlight-move');
+      el.classList.remove('highlight-capture');
+      var dot = el.querySelector('.highlight-dot');
+      if (dot) el.removeChild(dot);
+    }
+  });
+  highlightedSquares = [];
+}
+
+function highlightSquares(squares) {
+  squares.forEach(sq => {
+    var el = document.querySelector('.square-' + sq);
+    if (!el) return;
+    
+    // Проверяем, есть ли на этой клетке вражеская фигура
+    var piece = game.get(sq);
+    if (piece && 
+        ((game.turn() === 'w' && piece.color === 'b') || 
+         (game.turn() === 'b' && piece.color === 'w'))) {
+      // Если есть вражеская фигура - подсвечиваем красным
+      el.classList.add('highlight-capture');
+    } else {
+      // Иначе - обычная подсветка с точкой
+      el.classList.add('highlight-move');
+      var dot = document.createElement('div');
+      dot.className = 'highlight-dot';
+      el.appendChild(dot);
+    }
+    highlightedSquares.push(sq);
+  });
+}
+
+function onDragStart(source, piece, position, orientation) {
+  // запрещаем брать чужие фигуры
+  if ((game.turn() === 'w' && piece.startsWith('b')) ||
+      (game.turn() === 'b' && piece.startsWith('w'))) {
+    return false;
+  }
+
+  // подсветить возможные ходы
+  removeHighlights();
+  var moves = game.moves({ square: source, verbose: true });
+  var squaresToHighlight = moves.map(m => m.to);
+  highlightSquares(squaresToHighlight);
+}
+
+      function startGame() {
+          playerColor = selectedSide;
+          document.getElementById('player-choice').style.display = 'none';
+          document.getElementById('choice-header').style.display = 'none';
+          gameArea.style.display = 'flex';
+         
+          // Скрываем королей при начале игры
+          whiteKing.style.display = 'none';
+          blackKing.style.display = 'none';
+         
+          // Очищаем съеденные фигуры и историю ходов
+          capturedPieces.white = [];
+          capturedPieces.black = [];
+          moveHistory = [];
+          currentMoveIndex = -1;
+         
+          // Обновляем аватарки в зависимости от выбранной стороны
+          var topPlayer = document.getElementById('top-player');
+          var bottomPlayer = document.getElementById('bottom-player');
+          var topPlayerName = document.getElementById('top-player-name');
+          var bottomPlayerName = document.getElementById('bottom-player-name');
+          var topPlayerImg = topPlayer.querySelector('.player-avatar');
+          var bottomPlayerImg = bottomPlayer.querySelector('.player-avatar');
+          
+          if (playerColor === 'w') {
+              // Играем за белых - черные сверху, белые снизу
+              topPlayerImg.src = 'black_user_icon.jpg';
+              topPlayerImg.alt = 'Black Player (Bot)';
+              topPlayerName.textContent = 'Black (Bot)';
+              bottomPlayerImg.src = 'white_user_icon.jpg';
+              bottomPlayerImg.alt = 'White Player (You)';
+              bottomPlayerName.textContent = 'White (You)';
+          } else {
+              // Играем за черных - белые сверху, черные снизу
+              topPlayerImg.src = 'white_user_icon.jpg';
+              topPlayerImg.alt = 'White Player (Bot)';
+              topPlayerName.textContent = 'White (Bot)';
+              bottomPlayerImg.src = 'black_user_icon.jpg';
+              bottomPlayerImg.alt = 'Black Player (You)';
+              bottomPlayerName.textContent = 'Black (You)';
+          }
+         
+          var config = {
+            draggable: true,
+            position: 'start',
+            onDrop: onDrop,
+            onDragStart: onDragStart
+            };
+         
+          // Настраиваем сложность бота
+          setBotDifficulty(selectedDifficulty);
+          
+          if (playerColor === 'b') {
+              config.orientation = 'black';
+              game.load('rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1');
+              setTimeout(makeBotMove, 500);
+          }
+          board = Chessboard('board', config);
+          updateStatus();
+          calculateMaterialAdvantage();
+      }
+      
+      // Обработчики кнопок
+      whiteButton.onclick = function() { selectSide('w'); };
+      blackButton.onclick = function() { selectSide('b'); };
+      easyButton.onclick = function() { selectDifficulty('easy'); };
+      mediumButton.onclick = function() { selectDifficulty('medium'); };
+      hardButton.onclick = function() { selectDifficulty('hard'); };
+      playButton.onclick = function() { startGame(); };
+      
+      // Настраиваем кнопку реванша при загрузке страницы
+      setupRematchButton();
+      
+      // Инициализируем видимость королей при загрузке
+      updateKingsVisibility();
+    </script>
+</body>
+</html>
